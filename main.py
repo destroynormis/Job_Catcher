@@ -1,11 +1,13 @@
 """
 Job Swipe Bot — бот для поиска IT-вакансий в стиле "свайпов"
-Версия: 1.0 (базовый MVP)
+Версия: 1.2 (базовый MVP)
 """
+
 import asyncpg
 import asyncio
 import os
 import sys
+from aiohttp import web
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.types import Message, CallbackQuery
@@ -57,37 +59,21 @@ router = Router()
 async def init_db():
     global db_pool
     try:
-        # Пробуем подключиться
-        db_pool = await asyncpg.create_pool(
-            user='postgres',
-            password='790731',
-            database='job_swipe_bot',
-            host='127.0.0.1',
-            port=5432,
-            min_size=1,
-            max_size=10,
-            command_timeout=60
-        )
+        # Получаем строку подключения из переменной окружения
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            raise ValueError("DATABASE_URL не найден в переменных окружения")
+        
+        # Убираем 'postgresql://' и добавляем 'postgres://' для asyncpg
+        if database_url.startswith("postgresql://"):
+            database_url = database_url.replace("postgresql://", "postgres://", 1)
+        
+        db_pool = await asyncpg.create_pool(database_url)
         print("✅ База данных подключена!")
         return db_pool
-    except asyncpg.exceptions.InvalidPasswordError:
-        print("❌ ОШИБКА: Неверный пароль от PostgreSQL!")
-        print("👉 Проверьте пароль в коде (строка с password='...')")
-        print("👉 Или сбросьте пароль через pg_hba.conf (см. инструкцию выше)")
-        sys.exit(1)
-    except asyncpg.exceptions.ConnectionDoesNotExistError:
-        print("❌ ОШИБКА: Сервер PostgreSQL не запущен!")
-        print("👉 Откройте 'Службы Windows' → найдите 'postgresql-x64-17' → запустите")
-        sys.exit(1)
-    except asyncpg.exceptions.InvalidCatalogNameError:
-        print("❌ ОШИБКА: База данных 'job_swipe_bot' не существует!")
-        print("👉 Создайте базу в pgAdmin: Databases → ПКМ → Create → Database")
-        sys.exit(1)
     except Exception as e:
-        print(f"❌ Неизвестная ошибка подключения к БД: {e}")
+        print(f"❌ Ошибка подключения к БД: {e}")
         sys.exit(1)
-# Глобальная переменная для пула подключений
-db_pool = None
 
 
 # ============ ШАГ 2: ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===========
@@ -100,17 +86,47 @@ async def get_user_from_db(telegram_id: int):
         )
 
 async def get_next_vacancy(user_skills: list):
-    """Получаем следующую вакансию (пока тестовую)"""
-    # Позже заменим на запрос к таблице vacancies
-    return {
-        "id": 1,
-        "title": "Python Developer",
-        "company": "IT Startups Inc.",
-        "salary": 150000,
-        "location": "Москва (удалёнка)",
-        "skills": ["python", "django", "postgres"],
-        "url": "https://example.com/vacancy/1"
-    }
+    """Получаем случайную вакансию из БД"""
+    if not db_pool:
+        return None
+    
+    try:
+        async with db_pool.acquire() as conn:
+            # Выбираем случайную вакансию
+            query = """
+                SELECT * FROM vacancies
+                ORDER BY RANDOM()
+                LIMIT 1
+            """
+            vacancy = await conn.fetchrow(query)
+        
+        if vacancy:
+# Преобразуем массив навыков из БД в список Python
+            skills_list = list(vacancy['skills']) if vacancy['skills'] else []
+# Форматируем зарплату с пробелами (150000 → 150 000)
+            salary_formatted = f"{vacancy['salary']:,}".replace(",", " ") if vacancy['salary'] else "не указана"
+            return {
+                "id": vacancy['id'],
+                "title": vacancy['title'],
+                "company": vacancy['company'] or "Не указана",
+                "salary": salary_formatted,
+                "location": vacancy['location'] or "Не указано",
+                "skills": skills_list,
+                "url": vacancy['url'] or "https://hh.ru"
+            }
+        return None
+    
+    except Exception as e:
+        print(f"❌ Ошибка получения вакансии: {e}")
+        return {
+            "id": 999,
+            "title": "Python Developer",
+            "company": "IT Startups Inc.",
+            "salary": "150 000",
+            "location": "Москва (удалёнка)",
+            "skills": ["python", "django", "postgres"],
+            "url": "https://hh.ru/vacancy/123456"
+        }
 
 async def save_response(user_id: int, vacancy_id: int, action: str):
     """Сохраняем отклик пользователя (пока просто логируем)"""
@@ -364,10 +380,26 @@ async def handle_any_text(message: Message):
         "/search — искать вакансии 🔜"
     )
 
+    # ===== ВЕБ-СЕРВЕР ДЛЯ ПРОВЕРКИ ЗДОРОВЬЯ (обязательно для Fly.io) =====
+async def health_check(request):
+    return web.Response(text="OK")
+
+async def start_health_server():
+    """Минимальный веб-сервер для предотвращения 'сна' на Render"""
+    app = web.Application()
+    app.router.add_get('/health', health_check)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.environ.get('PORT', 8000))
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    print(f"✅ Веб-сервер здоровья активен на порту {port}")
+
 # ============ ШАГ 4: ЗАПУСК БОТА ============
 
 async def main():
     global db_pool
+    asyncio.create_task(start_health_server())
     await init_db()
     
     # Создаём таблицы при старте
