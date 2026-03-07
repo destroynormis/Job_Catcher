@@ -59,22 +59,29 @@ router = Router()
 async def init_db():
     global db_pool
     try:
-        # Получаем строку подключения из переменной окружения
         database_url = os.getenv("DATABASE_URL")
         if not database_url:
-            raise ValueError("DATABASE_URL не найден в переменных окружения")
+            # Для локального запуска — используем ваши настройки
+            db_pool = await asyncpg.create_pool(
+                user='postgres',
+                password='790731',
+                database='job_swipe_bot',
+                host='127.0.0.1',
+                port=5432
+            )
+            print("✅ База данных подключена (локально)!")
+            return db_pool
         
-        # Убираем 'postgresql://' и добавляем 'postgres://' для asyncpg
+        # Для Render — используем DATABASE_URL
         if database_url.startswith("postgresql://"):
             database_url = database_url.replace("postgresql://", "postgres://", 1)
         
         db_pool = await asyncpg.create_pool(database_url)
-        print("✅ База данных подключена!")
+        print("✅ База данных подключена (Render)!")
         return db_pool
     except Exception as e:
         print(f"❌ Ошибка подключения к БД: {e}")
         sys.exit(1)
-
 
 # ============ ШАГ 2: ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===========
 async def get_user_from_db(telegram_id: int):
