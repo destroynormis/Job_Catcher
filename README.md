@@ -1,72 +1,78 @@
-<div align="center">
+# JobCatcher
 
-&nbsp; 
+Telegram bot for catching IT vacancies from HH.ru with AI-powered profile analysis.
 
-\# ⚡ JobCatcher
+## About
 
-\*\*Automating the IT Job Hunt\*\*
+JobCatcher is an asynchronous Telegram bot built with aiogram 3 that collects your professional profile (using Yandex GPT) and automatically searches for relevant IT vacancies on HH.ru.
 
+The bot turns job hunting into a systematic pipeline: smart profile gathering → targeted search → clean vacancy cards.
 
+## Features
 
-\[!\[Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg?style=flat-square)](https://www.python.org/)
+- Natural AI interview to build your profile (Yandex GPT)
+- Real-time vacancy search via official HH.ru API
+- Filtering by skills, experience, salary and location
+- Clean HTML-formatted vacancy output
+- Modular architecture (routers + services + FSM)
+- Ready for background notifications and database integration
 
-\[!\[Aiogram](https://img.shields.io/badge/aiogram-3.x-red.svg?style=flat-square)](https://docs.aiogram.dev/)
+## Quick Start
 
-\[!\[License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
+1. Clone the repository
+   ```bash
+   git clone https://github.com/destroynormis/Job_Catcher.git
+   cd Job_Catcher
+   ```
 
+2. Create and activate virtual environment
+   ```bash
+   python -m venv venv
+   source venv/bin/activate    # Windows: venv\Scripts\activate
+   ```
 
+3. Install dependencies
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-\*Finding a job is a system architecture problem. We just built the pipeline.\*  
+4. Copy environment template
+   ```bash
+   cp .env.example .env
+   ```
+   Fill in your tokens (Telegram Bot Token + Yandex GPT API key).
 
-JobCatcher is a highly optimized, asynchronous Telegram bot designed to scrape, filter, and deliver relevant tech roles directly to your messenger.
+5. Run the bot
+   ```bash
+   python -m bot.main
+   ```
 
+## Project Structure
 
+```
+bot/
+├── handlers/     # Telegram routers
+├── services/     # hh_service, ai_service
+├── keyboards/
+├── models/       # FSM states
+├── utils/
+├── main.py
+└── config.py
+```
 
-</div>
+## Roadmap
 
+- [ ] Background vacancy notifications (APScheduler)
+- [ ] Persistent storage (PostgreSQL / SQLite + Redis)
+- [ ] AI-based vacancy relevance scoring
+- [ ] Additional sources (Habr Career, SuperJob)
+- [ ] Docker + docker-compose setup
+- [ ] Webhook deployment
 
+## Contributing
 
----
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
+## License
 
-
-\## 💡 The Concept
-
-Scrolling through endless job boards is a legacy process. JobCatcher rethinks the developer's job search by bringing the vacancies to you. Define your stack, set your preferences, and let the asynchronous engine catch the best offers in real-time. 
-
-
-
-Fast, non-blocking, and unapologetically efficient.
-
-
-
-\## 🛠 Tech Stack
-
-Engineered for high concurrency and zero bottlenecks:
-
-\- \*\*Core:\*\* `Python 3.10+`, `asyncio`
-
-\- \*\*API Framework:\*\* `Aiogram 3.x` (Fully asynchronous Telegram API wrapper)
-
-\- \*\*Database:\*\* PostgreSQL / SQLite (via `asyncpg` / `SQLAlchemy`) \*(planned)\*
-
-\- \*\*Environment:\*\* `python-dotenv` for secure secret management
-
-
-
-\## 🚀 Quickstart
-
-
-
-To spin up a local instance, you'll need Python 3.10+ and a Telegram Bot Token.
-
-
-
-\*\*1. Clone the repository:\*\*
-
-```bash
-
-git clone https://github.com/YOUR\_USERNAME/JobCatcher.git
-
-cd JobCatcher
-
+[MIT License](LICENSE)
